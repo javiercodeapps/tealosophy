@@ -19,7 +19,7 @@
 ##############################################################################
 {
     "name": "Backward compatibility for tax Settlements on Argentina",
-    "version": "19.0.1.0.0",
+    "version": "20.0.1.0.0",
     "category": "Accounting",
     "author": "ADHOC SA",
     "website": "www.adhoc.com.ar",
@@ -32,7 +32,7 @@
     "data": [],
     "demo": [],
     "test": [],
-    "installable": False,
+    "installable": True,
     "auto_install": True,
     "application": False,
 }

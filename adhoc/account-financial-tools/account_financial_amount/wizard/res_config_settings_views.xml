@@ -6,18 +6,11 @@
         <field name="model">res.config.settings</field>
         <field name="inherit_id" ref="account.res_config_settings_view_form"/>
         <field name="arch" type="xml">
-            <xpath expr="//div[@data-key='account']//field[@name='group_multi_currency']/../.." position="after">
-                <div class="col-xs-12 col-md-6 o_setting_box" attrs="{'invisible': [('group_multi_currency', '=', False)]}">
-                    <div class="o_setting_left_pane">
-                        <field name="group_account_use_financial_amounts"/>
-                    </div>
-                    <div class="o_setting_right_pane">
-                        <label for="group_account_use_financial_amounts"/>
-                        <div class="text-muted" id="use_financial_amounts">
-                            Display Financial amounts on partner debts views and reports. Financial amounts are amounts on other currency converted to company currency on todays exchange
-                        </div>
-                    </div>
-                </div>
+            <xpath expr="//setting[@id='main_currency']" position="after">
+                <setting id="account_use_financial_amounts" invisible="not group_multi_currency"
+                    help="Display Financial amounts on partner debts views and reports. Financial amounts are amounts on other currency converted to company currency on todays exchange.">
+                    <field name="group_account_use_financial_amounts"/>
+                </setting>
             </xpath>
         </field>
     </record>

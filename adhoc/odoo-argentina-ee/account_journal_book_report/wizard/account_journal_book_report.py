@@ -104,7 +104,7 @@ class AccountJournalBookReport(models.TransientModel):
     def action_check_report(self):
         """Este método se llama desde el botón 'Imprimir' del wizard 'Libro Diario'"""
         self.ensure_one()
-        if not self._context.get("bg_job"):
+        if not self.env.context.get("bg_job"):
             action, _jobs = self.bg_enqueue("action_check_report")
             action["params"]["title"] = _("Journal Book report sent to background")
             action["params"]["message"] = _(
@@ -137,7 +137,7 @@ class AccountJournalBookReport(models.TransientModel):
                 }
             )
 
-            base_url = self.env["ir.config_parameter"].sudo().get_param("web.base.url")
+            base_url = self.env["ir.config_parameter"].sudo().get_str("web.base.url")
             download_url = f"{base_url}/web/content/{attachment.id}?download=true"
 
             res_html = f"""

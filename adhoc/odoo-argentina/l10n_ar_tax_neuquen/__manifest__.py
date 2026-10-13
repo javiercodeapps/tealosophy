@@ -1,6 +1,6 @@
 {
     "name": "Argentinean Withholding Minimum for Neuquén",
-    "version": "19.0.1.0.0",
+    "version": "20.0.1.0.0",
     "category": "Localization/Argentina",
     "sequence": 14,
     "author": "ADHOC SA",
@@ -10,7 +10,7 @@
     "depends": ["l10n_ar_tax"],
     "data": [],
     "demo": [],
-    "installable": False,
+    "installable": True,
     "auto_install": False,
     "application": False,
 }

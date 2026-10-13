@@ -19,7 +19,7 @@
 ##############################################################################
 {
     "name": "Withholdings by Payment Method",
-    "version": "19.0.1.0.0",
+    "version": "20.0.1.0.0",
     "author": "ADHOC SA",
     "website": "www.adhoc.com.ar",
     "license": "AGPL-3",
@@ -31,7 +31,7 @@
     "data": [
         "views/account_journal_views.xml",
     ],
-    "installable": False,
+    "installable": True,
     "application": False,
     "auto_install": False,
     "post_init_hook": "_l10n_ar_set_apply_withholding",

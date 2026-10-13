@@ -22,10 +22,7 @@ class AccountChangeLockDate(models.TransientModel):
         self.tax_lock_date = self.company_id.tax_lock_date
 
     def _prepare_lock_date_values(self, exception_vals_list=None):
-        bypass = (
-            self.env["ir.config_parameter"].sudo().get_param("account.bypass_lock_date_validation", default="False")
-            == "True"
-        )
+        bypass = self.env["ir.config_parameter"].sudo().get_bool("account.bypass_lock_date_validation")
         if not bypass:
             return super()._prepare_lock_date_values(exception_vals_list=exception_vals_list)
         # Bypass: devolvemos solo los lock dates que cambiaron, sin el raise del core

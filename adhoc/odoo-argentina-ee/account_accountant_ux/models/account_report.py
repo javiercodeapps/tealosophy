@@ -253,11 +253,11 @@ class AccountReport(models.Model):
         # Agrupamos los apuntes por cuenta sumando débitos y créditos
         groups = self.env["account.move.line"].read_group(
             domain,
-            ["account_id", "debit:sum", "credit:sum"],
             ["account_id"],
+            ["debit:sum", "credit:sum"],
         )
         self._check_settlement_accounts_are_reachable(
-            self.env["account.account"].browse([group["account_id"][0] for group in groups if group.get("account_id")]),
+            self.env["account.account"].browse([acc.id for acc, __, __ in groups if acc]),
             journal.company_id,
         )
 
@@ -265,18 +265,15 @@ class AccountReport(models.Model):
         # (invertimos el saldo para dejarla en cero)
         currency = journal.company_id.currency_id
         lines_vals = []
-        for group in groups:
-            if not group.get("account_id"):
+        for acc, debit, credit in groups:
+            if not acc:
                 continue
-            acc_id, acc_name = group["account_id"]
-            debit = group["debit"]
-            credit = group["credit"]
             balance = debit - credit
             if not currency.is_zero(balance):
                 lines_vals.append(
                     {
-                        "name": acc_name,
-                        "account_id": acc_id,
+                        "name": acc.display_name,
+                        "account_id": acc.id,
                         "debit": -balance if balance < 0.0 else 0.0,
                         "credit": balance if balance > 0.0 else 0.0,
                     }
@@ -306,7 +303,7 @@ class AccountReport(models.Model):
                 }
             )
 
-        date = self._context.get("entry_date") or fields.Date.context_today(self)
+        date = self.env.context.get("entry_date") or fields.Date.context_today(self)
         vals = {
             "journal_id": journal.id,
             "date": date,

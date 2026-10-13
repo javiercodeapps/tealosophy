@@ -16,18 +16,17 @@ class L10nArBoardingPermission(models.Model):
         "Boarding permission already exists.",
     )
 
-    def name_get(self):
-        result = []
+    @api.depends("number", "dst_country")
+    def _compute_display_name(self):
         for rec in self:
-            result.append((rec.id, "%s - %s" % (rec.number, rec.dst_country.display_name)))
-        return result
+            rec.display_name = "%s - %s" % (rec.number, rec.dst_country.display_name)
 
     @api.model
-    def name_search(self, name, args=None, operator="ilike", limit=100):
-        args = args or []
+    def name_search(self, name, domain=None, operator="ilike", limit=100):
+        domain = domain or []
         recs = self.browse()
         if name:
-            recs = self.search([("number", operator, name)] + args, limit=limit)
+            recs = self.search([("number", operator, name)] + domain, limit=limit)
         if not recs:
-            recs = self.search([("dst_country", operator, name)] + args, limit=limit)
-        return recs.name_get()
+            recs = self.search([("dst_country", operator, name)] + domain, limit=limit)
+        return [(rec.id, rec.display_name) for rec in recs]

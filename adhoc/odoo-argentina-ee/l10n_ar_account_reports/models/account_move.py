@@ -10,7 +10,7 @@ class AccountMove(models.Model):
         Retornamos False para los asientos de cierre de returns argentinos cuando se llama desde el return,
         evitando que se posteen automáticamente.
         """
-        if self._context.get("post_from_tax_return"):
+        if self.env.context.get("post_from_tax_return"):
             ar_closing_types = [
                 self.env.ref("l10n_ar_account_reports.ar_sifere_iibb_return_type", raise_if_not_found=False),
                 self.env.ref("l10n_ar_reports.ar_tax_return_type", raise_if_not_found=False),

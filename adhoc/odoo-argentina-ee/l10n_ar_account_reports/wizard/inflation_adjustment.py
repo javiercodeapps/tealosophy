@@ -48,9 +48,6 @@ class InflationAdjustment(models.TransientModel):
         string="Opening Entry",
     )
 
-    def get_account_id(self, line):
-        return line.get("account_id")[0]
-
     @api.model
     def default_get(self, field_list):
         res = super(InflationAdjustment, self).default_get(field_list)
@@ -158,8 +155,8 @@ class InflationAdjustment(models.TransientModel):
         domain += [("account_id.include_initial_balance", "=", True), ("date", "<", self.date_from)]
         init_data = account_move_line.read_group(
             domain,
-            ["account_id", "balance"],
             ["account_id"],
+            ["balance:sum"],
         )
         date_to = self.date_to
         before_date_from = self.date_from + relativedelta(months=-1)
@@ -174,17 +171,17 @@ class InflationAdjustment(models.TransientModel):
             )
 
         initial_factor = (self.end_index / before_index.value) - 1.0
-        for line in init_data:
-            adjustment = line.get("balance") * initial_factor
+        for account, balance in init_data:
+            adjustment = balance * initial_factor
             if self.company_id.currency_id.is_zero(adjustment):
                 continue
             else:
                 adjustment = self.company_id.currency_id.round(adjustment)
             lines.append(
                 {
-                    "account_id": self.get_account_id(line),
+                    "account_id": account.id,
                     "name": _("Inflation adjustment opening balances (%s * %.2f%%)")
-                    % (FormatAmount(line.get("balance")), initial_factor * 100.0),
+                    % (FormatAmount(balance), initial_factor * 100.0),
                     "date_maturity": before_date_from,
                     "debit" if adjustment > 0 else "credit": abs(adjustment),
                 }
@@ -198,21 +195,21 @@ class InflationAdjustment(models.TransientModel):
             # search account.move.lines
             domain = self.get_move_line_domain()
             domain += [("date", ">=", period.get("date_from")), ("date", "<=", period.get("date_to"))]
-            data = account_move_line.read_group(domain, ["account_id", "balance"], ["account_id", "date"])
+            data = account_move_line.read_group(domain, ["account_id", "date:day"], ["balance:sum"])
             date_from = period.get("date_from")
-            for line in data:
-                adjustment = line.get("balance") * period.get("factor")
+            for account, __, balance in data:
+                adjustment = balance * period.get("factor")
                 if self.company_id.currency_id.is_zero(adjustment):
                     continue
                 else:
                     adjustment = self.company_id.currency_id.round(adjustment)
                 lines.append(
                     {
-                        "account_id": self.get_account_id(line),
+                        "account_id": account.id,
                         "name": _("Inflation adjustment %s (%s * %.2f%%)")
                         % (
                             format_date(self.env, date_from, date_format="MM/Y"),
-                            FormatAmount(line.get("balance")),
+                            FormatAmount(balance),
                             period.get("factor") * 100.0,
                         ),
                         "date_maturity": period.get("date_from"),

@@ -114,7 +114,7 @@ class ResCompany(models.Model):
         for company in companies:
             if company.country_id.code == "AR":
                 key = f"l10n_ar_edi.{company.id}_foreign_currency_payment"
-                self.env["ir.config_parameter"].sudo().set_param(key, "account")
+                self.env["ir.config_parameter"].sudo().set_str(key, "account")
         return companies
 
     def write(self, vals):

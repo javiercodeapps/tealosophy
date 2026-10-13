@@ -19,7 +19,7 @@
 ##############################################################################
 {
     "name": "ARBA Webservice (A122R)",
-    "version": "19.0.1.4.0",
+    "version": "20.0.1.0.0",
     "category": "Localization/Argentina",
     "sequence": 14,
     "author": "ADHOC SA",
@@ -31,7 +31,7 @@
         "l10n_ar_edi",
     ],
     "data": [
-        "security/ir.model.access.csv",
+        "security/ir.access.csv",
         "data/ir_cron_data.xml",
         "views/l10n_ar_dj_arba_views.xml",
         "views/account_payment_views.xml",
@@ -39,7 +39,7 @@
         "views/l10n_ar_payment_withholding_views.xml",
         "wizard/arba_withholding_draft_warning_views.xml",
     ],
-    "installable": False,
+    "installable": True,
     "auto_install": False,
     "application": False,
 }
