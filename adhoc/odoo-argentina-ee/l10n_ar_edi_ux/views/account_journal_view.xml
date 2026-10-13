@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_account_journal_form" model="ir.ui.view">
+        <field name="name">account.journal.form</field>
+        <field name="model">account.journal</field>
+        <field name="inherit_id" ref="l10n_ar.view_account_journal_form"/>
+        <field name="arch" type="xml">
+            <button name="l10n_ar_check_afip_pos_number" position="after">
+                <button name="l10n_ar_check_afip_doc_types" string="Get Document Types" help="Get valid document types for this webservice" type="object" invisible="not l10n_ar_afip_ws"/>
+            </button>
+        </field>
+    </record>
+
+    <!-- Add menu item for the journal wizard -->
+    <menuitem id="menu_l10n_ar_arca_journal_wizard"
+              name="Create Journals from ARCA"
+              parent="account.account_account_menu"
+              action="action_l10n_ar_arca_journal_wizard"
+              sequence="50"
+              groups="account.group_account_manager"/>
+</odoo>
