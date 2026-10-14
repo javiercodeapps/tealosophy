@@ -5,8 +5,11 @@
         <field name="model">res.config.settings</field>
         <field name="inherit_id" ref="account_base_import.res_config_settings_import_view_form"/>
         <field name="arch" type="xml">
-            <!-- Remove help text from Initial Setup setting -->
-            <xpath expr="//block[@name='accounting_import_setting_container']/setting" position="attributes">
+            <!-- Remove help text from Initial Setup setting. Odoo 20 renombró el
+                 bloque a fiscal_localization_setting_container y dejó de ponerle name a
+                 este setting, así que lo identificamos por el botón de setup que
+                 contiene. -->
+            <xpath expr="//setting[.//button[@name='%(account_base_import.action_open_coa_setup)d']]" position="attributes">
                 <attribute name="help"></attribute>
             </xpath>
 
