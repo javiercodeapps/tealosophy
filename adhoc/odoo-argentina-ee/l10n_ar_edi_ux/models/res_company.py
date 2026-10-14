@@ -130,16 +130,16 @@ class ResCompany(models.Model):
         branch hierarchies are supported (e.g. grandchild → child → parent with
         cert).  Returns an empty recordset when no such ancestor exists.
 
-        Uses partner_id.l10n_ar_vat (normalized via stdnum.ar.cuit.compact) for
+        Uses partner_id.vat (normalized via stdnum.ar.cuit.compact) for
         comparison so that different VAT formats (with/without dashes) are handled
         correctly."""
         self.ensure_one()
-        my_vat = self.partner_id.l10n_ar_vat
+        my_vat = self.partner_id.vat
         if not my_vat:
             return self.env["res.company"]
         ancestor = self.parent_id.sudo()
         while ancestor:
-            if ancestor.partner_id.l10n_ar_vat == my_vat and ancestor.l10n_ar_afip_ws_crt_id:
+            if ancestor.partner_id.vat == my_vat and ancestor.l10n_ar_afip_ws_crt_id:
                 return ancestor
             ancestor = ancestor.parent_id
         return self.env["res.company"]
@@ -190,7 +190,7 @@ class ResCompany(models.Model):
         self.ensure_one()
         certificate_sudo = self.sudo().l10n_ar_afip_ws_crt_id
         if certificate_sudo and (
-            not self.partner_id.l10n_ar_vat
+            not self.partner_id.vat
             or certificate_sudo.l10n_ar_subject_serial_number != "CUIT %s" % self.partner_id.vat
         ):
             raise UserError(
