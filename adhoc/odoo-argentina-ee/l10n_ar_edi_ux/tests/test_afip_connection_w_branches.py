@@ -36,7 +36,6 @@ class TestAfipConnection(TransactionCase):
 
         ar_country = cls.env.ref("base.ar")
         ar_currency = cls.env.ref("base.ARS")
-        cuit_type = cls.env.ref("l10n_ar.it_cuit")
         afip_ri = cls.env.ref("l10n_ar.res_IVARI")
 
         # Shared private key (satisfies the certificate FK)
@@ -62,7 +61,6 @@ class TestAfipConnection(TransactionCase):
         )
         cls.parent_company.partner_id.write(
             {
-                "l10n_latam_identification_type_id": cuit_type.id,
                 "vat": "20313932975",
                 "l10n_ar_afip_responsibility_type_id": afip_ri.id,
                 "country_id": ar_country.id,
@@ -86,7 +84,6 @@ class TestAfipConnection(TransactionCase):
         )
         cls.child_company.partner_id.write(
             {
-                "l10n_latam_identification_type_id": cuit_type.id,
                 "vat": "20313932975",
                 "l10n_ar_afip_responsibility_type_id": afip_ri.id,
                 "country_id": ar_country.id,
@@ -129,7 +126,6 @@ class TestAfipConnection(TransactionCase):
         )
         cls.branch_diff_cuit.partner_id.write(
             {
-                "l10n_latam_identification_type_id": cuit_type.id,
                 "vat": "30711017077",
                 "l10n_ar_afip_responsibility_type_id": afip_ri.id,
                 "country_id": ar_country.id,
@@ -148,7 +144,6 @@ class TestAfipConnection(TransactionCase):
         )
         cls.branch_with_cert.partner_id.write(
             {
-                "l10n_latam_identification_type_id": cuit_type.id,
                 "vat": "30500010084",
                 "l10n_ar_afip_responsibility_type_id": afip_ri.id,
                 "country_id": ar_country.id,
@@ -167,7 +162,6 @@ class TestAfipConnection(TransactionCase):
         )
         cls.company_matching.partner_id.write(
             {
-                "l10n_latam_identification_type_id": cuit_type.id,
                 "vat": "20313932975",
                 "l10n_ar_afip_responsibility_type_id": afip_ri.id,
                 "country_id": ar_country.id,
@@ -180,7 +174,6 @@ class TestAfipConnection(TransactionCase):
         )
         cls.company_mismatch.partner_id.write(
             {
-                "l10n_latam_identification_type_id": cuit_type.id,
                 "vat": "30711017077",
                 "l10n_ar_afip_responsibility_type_id": afip_ri.id,
                 "country_id": ar_country.id,
@@ -378,7 +371,6 @@ class TestAfipConnection(TransactionCase):
         )
         grandchild_same_cuit.partner_id.write(
             {
-                "l10n_latam_identification_type_id": self.env.ref("l10n_ar.it_cuit").id,
                 "vat": "20313932975",
                 "l10n_ar_afip_responsibility_type_id": self.env.ref("l10n_ar.res_IVARI").id,
                 "country_id": self.env.ref("base.ar").id,

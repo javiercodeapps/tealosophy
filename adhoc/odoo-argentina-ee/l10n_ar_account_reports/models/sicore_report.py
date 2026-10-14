@@ -69,17 +69,18 @@ class L10n_ArSicoreReportHandler(models.AbstractModel):
         """Valida los datos del contacto que informa el registro SICORE.
 
         Cada aviso redirige al registro donde se corrige el dato faltante: el
-        código ARCA está en el tipo de identificación y el CUIT en el contacto.
+        código ARCA vive en el contacto (Odoo 20: l10n_ar_afip_code) y el CUIT
+        también.
         """
-        identification_type = partner.l10n_latam_identification_type_id
-        if not identification_type.l10n_ar_afip_code:
+        if not partner.l10n_ar_afip_code:
             raise RedirectWarning(
                 message=_(
-                    'The identification type "%(identification_type)s" does not have ARCA code set.',
-                    identification_type=identification_type.name,
+                    'The partner "%(partner_name)s" (id %(partner_id)s) does not have the identification type set.',
+                    partner_name=partner.name,
+                    partner_id=partner.id,
                 ),
-                action=identification_type.get_formview_action(),
-                button_text=_("Edit identification type"),
+                action=partner.get_formview_action(),
+                button_text=_("Edit contact"),
             )
         if not partner.vat:
             raise RedirectWarning(
@@ -106,7 +107,7 @@ class L10n_ArSicoreReportHandler(models.AbstractModel):
         # Fecha Emision Boletin          [10] (dd/mm/yyyy)
         content += fields.Date.from_string(issue_date).strftime("%d/%m/%Y")
         # Tipo Documento Retenido (document type code)       [ 2]
-        content += f"{int(partner.l10n_latam_identification_type_id.l10n_ar_afip_code):02d}"
+        content += f"{int(partner.l10n_ar_afip_code or 0):02d}"
         # Numero Documento Retenido (vat)     [20]
         # El campo espera el número sin separadores; el tipo va en el campo
         # anterior. No usamos ensure_vat() porque solo devuelve el CUIT, y acá

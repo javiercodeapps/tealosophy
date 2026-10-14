@@ -200,7 +200,7 @@ class ResCompany(models.Model):
                 )
                 % (
                     certificate_sudo.l10n_ar_subject_serial_number,
-                    self.partner_id.l10n_latam_identification_type_id.name,
+                    self.partner_id.l10n_ar_identification_label,
                     self.partner_id.vat,
                 )
             )

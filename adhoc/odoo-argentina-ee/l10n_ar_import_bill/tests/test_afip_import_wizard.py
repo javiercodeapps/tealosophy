@@ -85,15 +85,13 @@ class TestAfipImportWizard(TestArCommon):
         # dispara _get_partner_by_vat al crear un partner CUIT nuevo.
         for line in wizard.line_ids:
             if not self.env["res.partner"].search([("vat", "=", line.partner_vat)], limit=1):
-                id_type = self.env["l10n_latam.identification.type"].search(
-                    [("name", "ilike", line.partner_identification_type)], limit=1
-                )
                 self.env["res.partner"].create(
                     {
                         "name": line.partner_name,
                         "vat": line.partner_vat,
-                        "l10n_latam_identification_type_id": id_type.id,
                         "company_type": "company",
+                        "country_id": self.env.ref("base.ar").id,
+                        **line._get_additional_identifiers_vals(),
                     }
                 )
 
@@ -128,7 +126,7 @@ class TestAfipImportWizard(TestArCommon):
                     partner_by_vat.vat, line.partner_vat, f"Created partner VAT should match for line {line}"
                 )
                 self.assertEqual(
-                    partner_by_vat.l10n_latam_identification_type_id.name,
+                    partner_by_vat.l10n_ar_identification_label,
                     line.partner_identification_type,
                     f"Identification type should match for line {line}",
                 )

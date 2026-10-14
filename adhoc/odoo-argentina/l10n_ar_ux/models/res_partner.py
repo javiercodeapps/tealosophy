@@ -13,6 +13,13 @@ class ResPartner(models.Model):
     # Override to add tracking
     l10n_ar_afip_responsibility_type_id = fields.Many2one(tracking=True)
 
+    l10n_ar_identification_label = fields.Char(
+        string="Identification Type",
+        compute="_compute_l10n_ar_identification_label",
+        help="Label of the preferred Argentine identification (CUIT, CUIL, DNI, ...). Odoo 20 stores the"
+        " identification in res.partner.additional_identifiers; this field exposes its human readable label.",
+    )
+
     gross_income_jurisdiction_ids = fields.Many2many(
         "res.country.state",
         string="Gross Income Jurisdictions",
@@ -45,6 +52,14 @@ class ResPartner(models.Model):
     )
     last_update_padron = fields.Date()
 
+    @api.depends("additional_identifiers", "vat", "state_id", "country_id")
+    def _compute_l10n_ar_identification_label(self):
+        """Label (CUIT, CUIL, CDI, DNI, ...) of the preferred identification, taken from the
+        additional identifiers metadata contributed by l10n_ar."""
+        for partner in self:
+            vals = partner._get_preferred_legal_entity_identifier_vals()
+            partner.l10n_ar_identification_label = vals.get("label") or ""
+
     @api.constrains("gross_income_jurisdiction_ids", "state_id")
     def check_gross_income_jurisdictions(self):
         for rec in self:
@@ -65,27 +80,31 @@ class ResPartner(models.Model):
         error = dict()
         error_message = []
         vat = data.get("vat")
-        l10n_latam_identification_type_id = data.get("l10n_latam_identification_type_id")
+        # Odoo 20: la identificacion vive en el JSON additional_identifiers ({"AR_CUIT": "20..."}).
+        # Aceptamos tambien el nombre corto del tipo para no romper formularios externos.
+        additional_identifiers = data.get("additional_identifiers") or {}
+        if not additional_identifiers and data.get("l10n_ar_identification_key"):
+            additional_identifiers = {data.get("l10n_ar_identification_key"): data.get("identification_number") or vat}
         l10n_ar_afip_responsibility_type_id = data.get("l10n_ar_afip_responsibility_type_id", False)
 
-        if vat and l10n_latam_identification_type_id:
+        if vat and additional_identifiers:
             commercial_partner = request.env.user.partner_id.commercial_partner_id
             try:
                 values = {
                     "vat": vat,
-                    "l10n_latam_identification_type_id": int(l10n_latam_identification_type_id),
+                    "additional_identifiers": additional_identifiers,
                     "l10n_ar_afip_responsibility_type_id": int(l10n_ar_afip_responsibility_type_id)
                     if l10n_ar_afip_responsibility_type_id
                     else False,
                 }
-                commercial_fields = ["vat", "l10n_latam_identification_type_id", "l10n_ar_afip_responsibility_type_id"]
+                commercial_fields = ["vat", "additional_identifiers", "l10n_ar_afip_responsibility_type_id"]
                 values = commercial_partner.remove_readonly_required_fields(commercial_fields, values)
                 with self.env.cr.savepoint():
                     commercial_partner.write(values)
             except Exception as exception_error:
                 _logger.error(exception_error)
                 error["vat"] = "error"
-                error["l10n_latam_identification_type_id"] = "error"
+                error["additional_identifiers"] = "error"
                 error_message.append(_(exception_error))
         return error, error_message
 
@@ -113,7 +132,7 @@ class ResPartner(models.Model):
                     values.pop(r_field, False)
         return values
 
-    @api.onchange("vat", "country_id", "l10n_latam_identification_type_id")
+    @api.onchange("vat", "country_id", "additional_identifiers")
     def _onchange_ar_identification_fields(self):
         """
         Agregamos este onchange para que cuando el usuario modifique el VAT o el tipo de documento
@@ -122,7 +141,7 @@ class ResPartner(models.Model):
         Traemos sólo lo necesario acá para tenerlo disponible en esta versión.
         """
         l10n_ar_partners = self.filtered(
-            lambda p: p.vat and (p.l10n_latam_identification_type_id.l10n_ar_afip_code or p.country_code == "AR")
+            lambda p: p.vat and (p.l10n_ar_afip_code or p.country_code == "AR")
         )
         for partner in l10n_ar_partners:
             if id_number := partner._get_id_number_sanitize():

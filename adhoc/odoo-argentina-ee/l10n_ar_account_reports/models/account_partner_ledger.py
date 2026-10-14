@@ -16,8 +16,8 @@ class PartnerLedgerCustomHandler(models.AbstractModel):
             options=options, partner=partner, partner_values=partner_values, level_shift=level_shift
         )
         partner_name = res.get("name")
-        if partner and partner.l10n_latam_identification_type_id.name and partner.vat:
-            doc_info = partner.l10n_latam_identification_type_id.name + ": " + partner.vat
+        if partner and partner.l10n_ar_identification_label and partner.vat:
+            doc_info = partner.l10n_ar_identification_label + ": " + partner.vat
             res.update({"name": partner_name[: 128 - len(doc_info) - 3] + " (%s)" % doc_info})
 
         return res

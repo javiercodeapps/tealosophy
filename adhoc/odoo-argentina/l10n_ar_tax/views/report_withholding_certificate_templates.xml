@@ -39,8 +39,8 @@
                         <strong>VAT Cond: </strong><span t-field="o.payment_id.partner_id.l10n_ar_afip_responsibility_type_id"/>
 
                         <!-- (17) CUIT -->
-                        <t t-if="o.payment_id.partner_id.vat and o.payment_id.partner_id.l10n_latam_identification_type_id.name and o.payment_id.partner_id.l10n_latam_identification_type_id.name != 'Sigd'">
-                            <br/><strong><t t-out="o.payment_id.partner_id.l10n_latam_identification_type_id.name or o.company_id.country_id.vat_label" id="inv_tax_id_label"/>:</strong> <span t-out="o.payment_id.partner_id.l10n_ar_formatted_vat or o.payment_id.partner_id.vat"/>
+                        <t t-if="o.payment_id.partner_id.vat and o.payment_id.partner_id.l10n_ar_identification_label and o.payment_id.partner_id.l10n_ar_afip_code != '99'">
+                            <br/><strong><t t-out="o.payment_id.partner_id.l10n_ar_identification_label or o.company_id.country_id.vat_label" id="inv_tax_id_label"/>:</strong> <span t-out="o.payment_id.partner_id.l10n_ar_formatted_vat or o.payment_id.partner_id.vat"/>
                         </t>
 
                     </div>

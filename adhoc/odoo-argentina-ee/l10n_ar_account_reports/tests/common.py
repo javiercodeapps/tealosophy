@@ -88,7 +88,6 @@ class TestL10nArAccountReportsCommon(TestArWithholdingArRi):
                 "zip": "2000",
                 "state_id": cls.env.ref("base.state_ar_s").id,
                 "country_id": cls.env.ref("base.ar").id,
-                "l10n_latam_identification_type_id": cls.env.ref("l10n_ar.it_cuit").id,
                 "vat": "30710158254",
                 "l10n_ar_afip_responsibility_type_id": cls.env.ref("l10n_ar.res_IVARI").id,
                 "l10n_ar_gross_income_type": "local",

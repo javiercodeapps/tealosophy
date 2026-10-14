@@ -31,7 +31,7 @@ class ResPartnerUpdateFromPadronWizard(models.TransientModel):
         # TODO deberiamos buscar de otro manera estos partners
         domain = [
             ("vat", "!=", False),
-            ("l10n_latam_identification_type_id.l10n_ar_afip_code", "=", 80),
+            ("l10n_ar_afip_code", "=", "80"),
             "|",
             ("is_company", "=", True),
             ("parent_id", "=", False),

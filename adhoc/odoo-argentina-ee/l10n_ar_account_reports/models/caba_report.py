@@ -206,11 +206,8 @@ class L10n_ArCabaReportHandler(models.AbstractModel):
 
                 # 10 - Tipo de documento del Retenido
                 # vat
-                if partner.l10n_latam_identification_type_id.name not in [
-                    "CUIT",
-                    "CUIL",
-                    "CDI",
-                ]:
+                doc_type_mapping = {"80": "3", "86": "2", "87": "1"}  # CUIT, CUIL, CDI
+                if partner.l10n_ar_afip_code not in doc_type_mapping:
                     raise RedirectWarning(
                         message=_(
                             'The contact "%(partner_name)s" (id %(partner_id)s) must have the identification type'
@@ -221,8 +218,7 @@ class L10n_ArCabaReportHandler(models.AbstractModel):
                         action=partner.get_formview_action(),
                         button_text=_("Edit contact"),
                     )
-                doc_type_mapping = {"CUIT": "3", "CUIL": "2", "CDI": "1"}
-                content += doc_type_mapping[partner.l10n_latam_identification_type_id.name]
+                content += doc_type_mapping[partner.l10n_ar_afip_code]
 
                 # 11 - Nro de documento del Retenido
                 content += str(partner._get_id_number_sanitize())

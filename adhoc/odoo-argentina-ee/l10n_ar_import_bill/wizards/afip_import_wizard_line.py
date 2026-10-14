@@ -1,6 +1,22 @@
 from odoo import _, api, fields, models
 from odoo.exceptions import UserError
 
+# Odoo 20 ya no tiene el modelo l10n_latam.identification.type: la identificacion vive en
+# res.partner.additional_identifiers. Mapeamos el nombre que viene del archivo de AFIP a la
+# clave del JSON. CUIT no necesita entrada: se deriva del vat + pais Argentina.
+AFIP_IDENTIFICATION_TYPE_KEYS = {
+    "CUIT": "AR_CUIT",
+    "CUIL": "AR_CUIL",
+    "CDI": "AR_CDI",
+    "DNI": "AR_DNI",
+    "LE": "AR_LE",
+    "LC": "AR_LC",
+    "CI": "AR_CI",
+    "SIGD": "AR_SIGD",
+    "PASAPORTE": "PASSPORT",
+    "PASSPORT": "PASSPORT",
+}
+
 
 class AfipImportWizardLine(models.TransientModel):
     _name = "afip.import.wizard.line"
@@ -67,23 +83,29 @@ class AfipImportWizardLine(models.TransientModel):
         partner = self.env["res.partner"].search([("vat", "=", self.partner_vat)], limit=1)
 
         if not partner:
-            identification_type = self.env["l10n_latam.identification.type"].search(
-                [("name", "ilike", self.partner_identification_type)], limit=1
-            )
-
             partner = self.env["res.partner"].create(
                 {
                     "name": self.partner_name,
                     "vat": self.partner_vat,
-                    "l10n_latam_identification_type_id": identification_type.id,
                     "company_type": "company",
+                    # Pais requerido para que Odoo derive el codigo AFIP (CUIT = 80) del vat.
+                    "country_id": self.env.ref("base.ar").id,
+                    **self._get_additional_identifiers_vals(),
                 }
             )
             # Si el tipo de identificación es CUIT (código AFIP 80), actualizamos los datos desde AFIP
-            if partner.l10n_latam_identification_type_id.l10n_ar_afip_code == 80:
+            if partner.l10n_ar_afip_code == "80":
                 partner.button_update_partner_data_from_afip()
 
         return partner
+
+    def _get_additional_identifiers_vals(self):
+        """Traduce el tipo de identificación del archivo a una entrada de
+        additional_identifiers (JSON). Devuelve vacío para CUIT, que se deriva del vat."""
+        key = AFIP_IDENTIFICATION_TYPE_KEYS.get((self.partner_identification_type or "").strip().upper())
+        if not key or key == "AR_CUIT":
+            return {}
+        return {"additional_identifiers": {key: self.partner_vat}}
 
     def _get_document_type(self):
         """

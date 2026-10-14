@@ -27,7 +27,6 @@ class TestWsdlCache(TransactionCase):
 
         ar_country = cls.env.ref("base.ar")
         ar_currency = cls.env.ref("base.ARS")
-        cuit_type = cls.env.ref("l10n_ar.it_cuit")
         afip_ri = cls.env.ref("l10n_ar.res_IVARI")
 
         cls.company = cls.env["res.company"].create(
@@ -35,7 +34,6 @@ class TestWsdlCache(TransactionCase):
         )
         cls.company.partner_id.write(
             {
-                "l10n_latam_identification_type_id": cuit_type.id,
                 "vat": "20313932975",
                 "l10n_ar_afip_responsibility_type_id": afip_ri.id,
                 "country_id": ar_country.id,
