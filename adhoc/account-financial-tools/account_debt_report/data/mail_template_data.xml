@@ -7,7 +7,6 @@
         <field name="partner_to">{{ object.id }}</field>
         <field name="report_template_ids" eval="[(4, ref('account_debt_report'))]"/>
         <field name="subject">Debt Detail {{ object.company_id.name }}</field>
-        <field name="lang">{{ object.lang }}</field>
         <field name="email_from">{{ object.user_id.email or '' }}</field>
         <field name="body_html" type="html">
             <div style="margin: 0px; padding: 0px;">
