@@ -1,4 +1,3 @@
-import base64
 import csv
 from io import StringIO
 
@@ -23,7 +22,7 @@ class ResCompany(models.Model):
     def process_mendoza_csv_file(self, partner_vat, activity_codes):
         if self.riesgo_fiscal_csv_file:
             # Decode the base64 file content and parse the CSV
-            csv_content = base64.b64decode(self.riesgo_fiscal_csv_file)
+            csv_content = self.riesgo_fiscal_csv_file.content
             csv_data = StringIO(csv_content.decode("utf-8"))
             reader = csv.reader(csv_data, delimiter=";")
             actividades_con_riesgo = []
