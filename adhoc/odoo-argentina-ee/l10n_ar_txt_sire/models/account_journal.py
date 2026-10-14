@@ -311,7 +311,7 @@ class AccountJournal(models.Model):
                     )
                 content += pais.l10n_ar_legal_entity_vat
             else:
-                content += line.partner_id.l10n_ar_vat
+                content += line.partner_id.vat
             # 23 Certificado original nro (string 25, 256-280, no obligatorio)
             content += " " * 25
             # 24 Certificado original fecha reten (date 10, 281-290, no obligatorio)
