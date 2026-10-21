@@ -410,14 +410,15 @@ class AccountReport(models.Model):
         if "date" in options:
             options["date"]["fiscal_year_current_string"] = fy_base.get("string", "")
 
-   #def _get_dates_period(self, date_from, date_to, mode, period_type=None, options_return=False):
-   #    """Override to handle 'calendar_year' period type and show just the year as label."""
-   #    result = super()._get_dates_period(
-   #        date_from, date_to, mode, period_type=period_type, options_return=options_return
-   #    )
-   #    if period_type == "calendar_year" and date_to:
-   #        result["string"] = date_to.strftime("%Y")
-   #    return result
+    def _get_dates_period(self, date_from, date_to, mode, period_type=None, options_return=False):
+        """Override to handle 'calendar_year' period type and show just the year as label."""
+       #result = super()._get_dates_period(
+       #    date_from, date_to, mode, period_type=period_type, options_return=options_return
+       #)
+        result = {}
+        if period_type == "calendar_year" and date_to:
+            result["string"] = date_to.strftime("%Y")
+        return result
 
     def _get_shifted_dates_period(self, options, period_vals, periods, return_period=False):
         """Override to handle period shifting for 'calendar_year' period type."""
