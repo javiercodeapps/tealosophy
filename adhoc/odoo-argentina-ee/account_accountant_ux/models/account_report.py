@@ -428,7 +428,7 @@ class AccountReport(models.Model):
             new_date_from = date_from + relativedelta(years=periods)
             new_date_to = datetime.date(new_date_from.year, 12, 31)
             return self._get_dates_period(new_date_from, new_date_to, mode, period_type="calendar_year")
-        return super()._get_shifted_dates_period(options, period_vals, periods, return_period=return_period)
+        return super()._get_shifted_dates_period(options, period_vals, periods)
 
     def _expand_unfoldable_line(
         self,
