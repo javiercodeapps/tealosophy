@@ -137,15 +137,31 @@ class ResPartner(models.Model):
         due_data = defaultdict(float)
         overdue_data = defaultdict(float)
         receivable_due_data = defaultdict(float)
+        receivable_due_followup_data = defaultdict(float)
+        receivable_due_currency_followup_data = defaultdict(float)
         receivable_overdue_data = defaultdict(float)
         receivable_overdue_followup_data = defaultdict(float)
+        receivable_overdue_currency_followup_data = defaultdict(float)
+        followup_single_currency_id = {}
         unreconciled_aml_ids = defaultdict(list)
-        for account_type, overdue, partner, no_followup, amount_residual_sum, aml_ids in self.env[
-            "account.move.line"
-        ]._read_group(
+        for (
+            account_type,
+            overdue,
+            partner,
+            no_followup,
+            amount_residual_sum,
+            aml_ids,
+            amount_residual_currency_sum,
+            currency_ids,
+        ) in self.env["account.move.line"]._read_group(
             domain=self._get_unreconciled_aml_domain(),
             groupby=["account_type", "followup_overdue", "partner_id", "no_followup"],
-            aggregates=["amount_residual:sum", "id:array_agg"],
+            aggregates=[
+                "amount_residual:sum",
+                "id:array_agg",
+                "amount_residual_currency:sum",
+                "currency_id:array_agg",
+            ],
         ):
             # Skip lines with no_followup=True
             if no_followup:
@@ -154,9 +170,16 @@ class ResPartner(models.Model):
             if account_type == "asset_receivable":
                 unreconciled_aml_ids[partner] += aml_ids
                 receivable_due_data[partner] += amount_residual_sum
+                receivable_due_followup_data[partner] += amount_residual_sum
+                if len(set(currency_ids)) == 1:
+                    receivable_due_currency_followup_data[partner] += amount_residual_currency_sum
+                    followup_single_currency_id[partner] = currency_ids[0]
                 if overdue:
                     receivable_overdue_data[partner] += amount_residual_sum
                     receivable_overdue_followup_data[partner] += amount_residual_sum
+                    if len(set(currency_ids)) == 1:
+                        receivable_overdue_currency_followup_data[partner] += amount_residual_currency_sum
+                        followup_single_currency_id[partner] = currency_ids[0]
 
             due_data[partner] += amount_residual_sum
             if overdue:
@@ -164,8 +187,13 @@ class ResPartner(models.Model):
 
         for partner in self:
             partner.total_all_due = due_data.get(partner, 0.0)
+            partner.total_all_due_abs = abs(due_data.get(partner, 0.0))
             partner.total_all_overdue = overdue_data.get(partner, 0.0)
             partner.total_due = receivable_due_data.get(partner, 0.0)
+            partner.total_due_followup = receivable_due_followup_data.get(partner, 0.0)
+            partner.total_due_currency_followup = receivable_due_currency_followup_data.get(partner, 0.0)
             partner.total_overdue = receivable_overdue_data.get(partner, 0.0)
             partner.total_overdue_followup = receivable_overdue_followup_data.get(partner, 0.0)
+            partner.total_overdue_currency_followup = receivable_overdue_currency_followup_data.get(partner, 0.0)
+            partner.followup_single_currency_id = followup_single_currency_id.get(partner, False)
             partner.unreconciled_aml_ids = self.env["account.move.line"].browse(unreconciled_aml_ids.get(partner, []))

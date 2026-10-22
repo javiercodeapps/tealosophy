@@ -14,10 +14,10 @@ class ResPartner(models.Model):
             'total_due', 'total_invoiced', 'total_overdue'
         ]
         
-        # Los agregamos asegurándonos de no duplicarlos si el usuario ya los tenía
+        # Los agregamos asegurándonos de que existan y de no duplicarlos
         for field in fields_to_add:
-            if field not in params:
+            if field in self._fields and field not in params:
                 params.append(field)
-                
+
         return params
 
