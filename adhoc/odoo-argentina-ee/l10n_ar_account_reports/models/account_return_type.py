@@ -164,7 +164,6 @@ class AccountReturnType(models.Model):
         period_to=None,
         start_day=1,
         start_month=1,
-        minimal=False,
         lang_code=None,
     ):
         """Extended to support fortnightly period names."""
@@ -175,7 +174,6 @@ class AccountReturnType(models.Model):
                 period_to=period_to,
                 start_day=start_day,
                 start_month=start_month,
-                minimal=minimal,
                 lang_code=lang_code,
             )
         self.ensure_one()
@@ -185,18 +183,10 @@ class AccountReturnType(models.Model):
             # For fortnightly: show "1ra Quincena Mes Año" or "2da Quincena Mes Año"
             fortnight_num = 1 if period_from.day == 1 else 2
             month_name = format_date(self.env, period_from, date_format="LLLL", lang_code=lang_code)
-            if minimal:
-                # Short format: "1Q Dec" or "2Q Dec"
-                month_short = format_date(self.env, period_from, date_format="LLL", lang_code=lang_code)
-                return f"{fortnight_num}Q {month_short}"
-            else:
-                # Full format: "1ra Quincena Diciembre 2024" or "2da Quincena Diciembre 2024"
-                ordinal = "1ra" if fortnight_num == 1 else "2da"
-                return f"{ordinal} Quincena {month_name} {period_from.year}"
+            ordinal = "1ra" if fortnight_num == 1 else "2da"
+            return f"{ordinal} Quincena {month_name} {period_from.year}"
 
-        return super()._get_period_name(
-            main_company, period_from, period_to, start_day, start_month, minimal, lang_code
-        )
+        return super()._get_period_name(main_company, period_from, period_to, start_day, start_month, lang_code)
 
     def _get_l10n_ar_activity_domain(self):
         """Returns the domain to detect activity for this return type.

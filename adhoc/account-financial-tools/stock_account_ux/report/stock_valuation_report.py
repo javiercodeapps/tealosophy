@@ -281,7 +281,7 @@ class StockValuationReport(models.AbstractModel):
                 # date_to = report date and date_from = start of the fiscal year (see
                 # ``_init_options_date``), with the previous balance on its own initial
                 # balance line.
-                options = gl_report.get_options({"date": {"mode": "single", "filter": "custom", "date_to": date}})
+                options = gl_report.get_options({"date": {"period_type": "custom", "date_to": date}})
                 action["params"] = {"options": options, "ignore_session": True}
         return action
 

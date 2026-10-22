@@ -15,7 +15,7 @@
         "views/afip_activity_view.xml",
         "wizard/res_config_settings_views.xml",
     ],
-    "installable": True,
+    "installable": False,
     "auto_install": False,
     "application": False,
     "post_init_hook": "post_init_hook",

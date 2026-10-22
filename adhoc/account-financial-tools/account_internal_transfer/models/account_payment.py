@@ -149,15 +149,6 @@ class AccountPayment(models.Model):
         ]
         return values
 
-    def _get_liquidity_aml_display_name_list(self):
-        res = super()._get_liquidity_aml_display_name_list()
-        if self.is_internal_transfer:
-            if self.payment_type == "inbound":
-                return [("transfer_to", _("Transfer to %s", self.journal_id.name))]
-            else:  # payment.payment_type == 'outbound':
-                return [("transfer_from", _("Transfer from %s", self.journal_id.name))]
-        return res
-
     @api.depends("destination_journal_id", "is_internal_transfer")
     def _compute_available_partner_bank_ids(self):
         super()._compute_available_partner_bank_ids()

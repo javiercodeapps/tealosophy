@@ -23,8 +23,7 @@ class StockMove(models.Model):
     # Moves whose valuation was already booked in v18 (the 18->19 post-migration
     # re-attached the entry to ``account_move_id``). The expense was recognised in the
     # previous version, so invoicing them in v19 must not generate the anglo-saxon COGS
-    # again. See the ``_stock_account_prepare_realtime_out_lines_vals`` override in
-    # account_move.py.
+    # again. See the ``_get_cogs_lines_vals`` override in account_move.py.
     stock_valuation_migrated = fields.Boolean(
         string="Valuation Booked in v18",
         default=False,
@@ -142,7 +141,7 @@ class StockMove(models.Model):
             "context": {**self.env.context, "default_move_ids": moves.ids},
         }
 
-    def _set_value(self, correction_quantity=None):
+    def _set_value(self, recompute_date=None, skip_check=False):
         """Do not revalue on invoicing the moves already valued in v18.
 
         Out of the box ``account.move._post`` calls ``_set_value`` on the invoice's
@@ -156,7 +155,7 @@ class StockMove(models.Model):
         moves = self
         if self.env.context.get("skip_migrated_stock_revaluation"):
             moves = self.filtered(lambda m: not (m.stock_valuation_migrated and (m.is_in or m.is_dropship)))
-        return super(StockMove, moves)._set_value(correction_quantity=correction_quantity)
+        return super(StockMove, moves)._set_value(recompute_date=recompute_date, skip_check=skip_check)
 
     def _get_migrated_valuation_counterpart_account(self):
         """Counterpart account of the valuation entry v18 left attached to

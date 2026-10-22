@@ -90,7 +90,7 @@ def migrate(env, version):
     # backup), tengan o no ``account_move_id`` ya seteado. La valorización de
     # esos movimientos ya se contabilizó en la versión anterior, así que al
     # facturarlos en v19 no debe re-generarse el COGS anglosajón. Lo consume la
-    # override de ``account.move._stock_account_prepare_realtime_out_lines_vals``.
+    # override de ``account.move._get_cogs_lines_vals``.
     env.cr.execute(
         """
         UPDATE stock_move sm

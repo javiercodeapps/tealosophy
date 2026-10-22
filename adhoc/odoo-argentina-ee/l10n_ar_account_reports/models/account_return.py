@@ -21,8 +21,7 @@ class AccountReturn(models.Model):
             "date": {
                 "date_from": fields.Date.to_string(self.date_from),
                 "date_to": fields.Date.to_string(self.date_to),
-                "filter": "custom",
-                "mode": "range",
+                "period_type": "custom",
             },
             "selected_variant_id": report.id,
             "sections_source_id": report.id,
@@ -45,7 +44,7 @@ class AccountReturn(models.Model):
             domain += l10n_ar_domain
         return domain
 
-    def _ensure_tax_group_configuration_for_tax_closing(self, tax_group_ids=None):
+    def _ensure_tax_closing_accounts_configured(self, company):
         """EXTENDS account_reports
 
         Para las liquidaciones argentinas hacemos una validación propia y NO corremos la nativa de Odoo, porque
@@ -58,7 +57,7 @@ class AccountReturn(models.Model):
         Para más detalle ver el mensaje del pull request / commit que introdujo este método.
         """
         if not self.type_id.l10n_ar_is_simple_closing_return:
-            return super()._ensure_tax_group_configuration_for_tax_closing(tax_group_ids)
+            return super()._ensure_tax_closing_accounts_configured(company)
 
         self.ensure_one()
         # Usamos el tax_group_id del apunte (related stored) y no el catálogo de impuestos: así entran los
@@ -108,13 +107,13 @@ class AccountReturn(models.Model):
                 )
         return super()._get_tax_closing_payable_and_receivable_accounts()
 
-    def _evaluate_total_amount_to_pay_from_tax_closing_accounts(self, payable_accounts, receivable_accounts):
+    def _evaluate_total_amount_to_pay_from_tax_closing_accounts(self, receivable_accounts):
         """Para simple closing returns, total_amount_to_pay = period_amount_to_pay (sin carryover).
         Esto evita que saldos históricos en las cuentas afecten el monto mostrado.
         """
         if self.type_id.l10n_ar_is_simple_closing_return:
             return self.period_amount_to_pay
-        return super()._evaluate_total_amount_to_pay_from_tax_closing_accounts(payable_accounts, receivable_accounts)
+        return super()._evaluate_total_amount_to_pay_from_tax_closing_accounts(receivable_accounts)
 
     def _on_post_submission_event(self):
         """No queremos que luego de submit dispare directamente pago, prefiero que se haga click en en boton,
@@ -191,7 +190,7 @@ class AccountReturn(models.Model):
             )
         ]
 
-    def _proceed_with_locking(self, options_to_inject=None):
+    def _proceed_with_locking(self):
         """
         For Argentinian provincial tax returns (Ingresos Brutos), we handle the locking process differently.
         We don't want to set the tax_lock_date when validating the "asiento de liquidación".
@@ -201,9 +200,7 @@ class AccountReturn(models.Model):
             company: company.tax_lock_date for company in self.company_ids.filtered(lambda c: c.country_id.code == "AR")
         }
         # mandamos contexto para que no se postee si no queremos
-        res = super(AccountReturn, self.with_context(post_from_tax_return=True))._proceed_with_locking(
-            options_to_inject=options_to_inject
-        )
+        res = super(AccountReturn, self.with_context(post_from_tax_return=True))._proceed_with_locking()
 
         # por ahora no queremos ningun informe argentino que haga lock porque, IVA, que es el principal lo estamos
         # dejando editable para que el usuario termine de acomodarlo, luego deberá hacer lock manualmente

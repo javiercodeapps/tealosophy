@@ -4,7 +4,7 @@ import io
 
 from odoo import _, models
 from odoo.exceptions import UserError
-from odoo.tools import SQL, float_repr
+from odoo.tools import float_repr
 
 CSV_PARTNER_BATCH_SIZE = 200
 # Leading characters that make a spreadsheet read a cell as a formula.
@@ -44,38 +44,6 @@ class PartnerLedgerCustomHandler(models.AbstractModel):
         res.get("context", {}).update({"search_default_group_by_partner": 1})
         return res
 
-    def _get_additional_column_aml_values(self):
-        """Add amount_residual (converted to the report currency) to the query.
-
-        The conversion mirrors the standard debit/credit/balance columns
-        (``_currency_table_apply_rate``) so the followup totals stay consistent
-        with the visible lines in multi-company / multi-currency setups.
-        """
-        return SQL(
-            "%s account_move_line.amount_residual * COALESCE(account_currency_table.rate, 1) AS amount_residual,",
-            super()._get_additional_column_aml_values(),
-        )
-
-    def _get_report_line_move_line(
-        self, options, aml_query_result, partner_line_id, init_bal_by_col_group, level_shift=0
-    ):
-        """Add amount_residual value to the line."""
-        line = super()._get_report_line_move_line(
-            options, aml_query_result, partner_line_id, init_bal_by_col_group, level_shift
-        )
-        line["amount_residual"] = aml_query_result.get("amount_residual", 0.0)
-        return line
-
-    def _get_aml_values(self, options, partner_ids, offset=0, limit=None):
-        # Core pops options['partner_ids'] before querying here, so our
-        # require_custom_filter override sees no partner filter and blanks the
-        # domain, returning zero lines. We already know the partners, so
-        # bypass the gate like "Show All" would.
-        report = self.env["account.report"].browse(options.get("report_id"))
-        if report.require_custom_filter and partner_ids:
-            options = {**options, "show_all_custom": True}
-        return super()._get_aml_values(options, partner_ids, offset=offset, limit=limit)
-
     def generate_csv_export(self, options):
         if len(options["column_groups"]) > 1:
             raise UserError(_("CSV export only works with one column group"))
@@ -97,12 +65,13 @@ class PartnerLedgerCustomHandler(models.AbstractModel):
             self.env.flush_all()
             handler = self.with_env(self.env(cr=new_cr))
             options = handler._get_csv_export_options(options)
-            partner_lines, totals_by_column_group = handler._get_csv_partner_lines(options)
+            partner_lines, total_line = handler._get_csv_partner_lines(options)
             yield handler._get_csv_header(options)
             for batch in handler._get_csv_partner_batches(partner_lines):
                 yield from handler._get_csv_partner_rows(options, partner_lines, batch)
                 handler.env.invalidate_all()
-            yield handler._get_csv_total_row(options, totals_by_column_group)
+            if total_line is not None:
+                yield handler._get_csv_row(options, "", total_line)
 
     def _get_bg_export_chunks(self, options, file_generator):
         """Split an export in parts that background jobs can build one by one.
@@ -120,7 +89,7 @@ class PartnerLedgerCustomHandler(models.AbstractModel):
             raise UserError(_("CSV export only works with one column group"))
         self.env.flush_all()
         report = self.env["account.report"].browse(options["report_id"])
-        partner_lines, _totals = self._get_csv_partner_lines(self._get_csv_export_options(options))
+        partner_lines, _total_line = self._get_csv_partner_lines(self._get_csv_export_options(options))
         batches = self._get_csv_partner_batches(partner_lines) or [[]]
         chunks = [{"partner_ids": batch, "header": False, "total": False} for batch in batches]
         chunks[0]["header"] = chunks[-1]["total"] = True
@@ -130,13 +99,13 @@ class PartnerLedgerCustomHandler(models.AbstractModel):
         """Build one part of the export split by ``_get_bg_export_chunks``, as bytes."""
         self.env.flush_all()
         options = self._get_csv_export_options(options)
-        partner_lines, totals_by_column_group = self._get_csv_partner_lines(options)
+        partner_lines, total_line = self._get_csv_partner_lines(options)
         rows = []
         if payload["header"]:
             rows.append(self._get_csv_header(options))
         rows.extend(self._get_csv_partner_rows(options, partner_lines, payload["partner_ids"]))
-        if payload["total"]:
-            rows.append(self._get_csv_total_row(options, totals_by_column_group))
+        if payload["total"] and total_line is not None:
+            rows.append(self._get_csv_row(options, "", total_line))
         return b"".join(rows)
 
     def _get_csv_export_options(self, options):
@@ -147,23 +116,28 @@ class PartnerLedgerCustomHandler(models.AbstractModel):
         )
 
     def _get_csv_partner_lines(self, options):
-        """Return the partner lines by partner id (``None`` for "Unknown Partner"), and the totals."""
+        """Return the partner lines by partner id (``None`` for "Unknown Partner"), and the total.
+
+        The report is asked for its aggregated lines only (``unfold_all`` is off in
+        ``_get_csv_export_options``); each partner is unfolded on demand, one batch at a time.
+        """
         report = self.env["account.report"].browse(options["report_id"])
-        # Out of the rendering flow (own cursor, background job) nobody creates the temporary
-        # currency table the ledger queries join, and it is dropped on commit.
-        report._init_currency_table(options)
-        partner_lines, totals_by_column_group = self._build_partner_lines(report, options)
-        lines_by_partner_id = {}
-        for line in partner_lines:
-            markup, _model, partner_id = report._parse_line_id(line["id"])[-1]
-            lines_by_partner_id[None if markup == "no_partner" else partner_id] = line
-        return lines_by_partner_id, totals_by_column_group
+        lines = report.with_context(no_format=True)._get_lines(options)
+        partner_lines = {}
+        total_line = None
+        for line in lines:
+            markup, model, res_id = report._parse_line_id(line.id)[-1]
+            if markup == "total":
+                total_line = line
+            elif model == "res.partner":
+                partner_lines[res_id] = line
+        return partner_lines, total_line
 
     def _get_csv_partner_batches(self, partner_lines):
         """Group the partners in batches, in the order of the report.
 
         The lines without partner get the reverse of every reconciled line of the other
-        partners (see _get_aml_values): only right when queried alone.
+        partners: only right when queried alone.
         """
         batches = []
         for partner_id in partner_lines:
@@ -181,25 +155,21 @@ class PartnerLedgerCustomHandler(models.AbstractModel):
         partner_ids = [partner_id for partner_id in partner_ids if partner_id in partner_lines]
         if not partner_ids:
             return
-        batch_data = {
-            "initial_balances": self._get_initial_balance_values(partner_ids, options),
-            "aml_values": self._get_aml_values(options, partner_ids),
-        }
         for partner_id in partner_ids:
             partner_line = partner_lines[partner_id]
-            yield self._get_csv_row(options, partner_line["name"], partner_line)
-            if not partner_line["unfoldable"]:
+            yield self._get_csv_row(options, partner_line.name, partner_line)
+            if not partner_line.unfoldable:
                 continue
-            expanded = self._report_expand_unfoldable_line_partner_ledger(
-                partner_line["id"],
-                None,
+            # The handler's own expansion scopes the query to this partner
+            # (``partner_ledger_expand_partner``); no "load more" limit, we want every line.
+            expanded = self._report_expand_unfoldable_line_with_groupby(
+                partner_line.id,
+                partner_line.groupby,
                 options,
-                {column_group_key: 0 for column_group_key in options["column_groups"]},
-                0,
-                unfold_all_batch_data=batch_data,
+                limit_to_load=None,
             )
-            for line in expanded["lines"]:
-                yield self._get_csv_row(options, partner_line["name"], line)
+            for line in expanded:
+                yield self._get_csv_row(options, partner_line.name, line)
 
     def _get_csv_header(self, options):
         header = [_("Partner"), _("Name")]
@@ -210,21 +180,19 @@ class PartnerLedgerCustomHandler(models.AbstractModel):
                 header.append(col["name"])
         return self._csv_format(header)
 
-    def _get_csv_total_row(self, options, totals_by_column_group):
-        return self._get_csv_row(options, "", self._get_report_line_total(options, totals_by_column_group))
-
     def _get_csv_row(self, options, partner_name, line):
+        """Write one report line: the partner, the label and one cell per report column."""
         company_currency = self.env.company.currency_id
         cells = [
             self._csv_escape_text(partner_name),
-            self._csv_escape_text(line["name"]) if line["name"] != partner_name else "",
+            self._csv_escape_text(line.name) if line.name != partner_name else "",
         ]
         # The label comes from the report column: the empty cells the ledger builds for a
-        # missing value (``_build_column_dict(None, None)``) carry none, and "amount_currency"
-        # would then take one cell instead of two, shifting the rest of the row.
-        for report_col, col in zip(options["columns"], line["columns"], strict=True):
-            value = col.get("no_format")
-            currency = col.get("currency") or company_currency
+        # missing value carry none, and "amount_currency" would then take one cell instead
+        # of two, shifting the rest of the row.
+        for report_col, col in zip(options["columns"], line.columns, strict=True):
+            value = col.no_format
+            currency = col.currency or company_currency
             if report_col["expression_label"] == "amount_currency":
                 if value in (None, "") or currency == company_currency:
                     cells += ["", ""]

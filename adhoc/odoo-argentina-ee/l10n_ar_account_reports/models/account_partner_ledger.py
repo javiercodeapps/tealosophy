@@ -5,19 +5,28 @@ class PartnerLedgerCustomHandler(models.AbstractModel):
     _inherit = "account.partner.ledger.report.handler"
 
     @api.model
-    def _get_report_line_partners(self, options, partner, partner_values, level_shift=0):
-        """We extend this method in order to show more information aside the partner's name: we add the
-        identification type name and the related document number:
+    def _get_custom_groupby_map(self):
+        """Show more information next to the partner's name: the identification label and the
+        document number.
 
         * before the partner was shown as "Partner Name"
-        * with this method now will be shown as "Partner Name (CUIT: 1234234235)"
+        * now it is shown as "Partner Name (CUIT: 1234234235)"
         """
-        res = super()._get_report_line_partners(
-            options=options, partner=partner, partner_values=partner_values, level_shift=level_shift
-        )
-        partner_name = res.get("name")
-        if partner and partner.l10n_ar_identification_label and partner.vat:
-            doc_info = partner.l10n_ar_identification_label + ": " + partner.vat
-            res.update({"name": partner_name[: 128 - len(doc_info) - 3] + " (%s)" % doc_info})
+        groupby_map = super()._get_custom_groupby_map()
+        partner_entry = groupby_map.get("partner_id")
+        if not partner_entry:
+            return groupby_map
 
-        return res
+        build_labels = partner_entry["label_builder"]
+
+        def partner_line_label_builder(ids):
+            labels = build_labels(ids)
+            for partner in self.env["res.partner"].browse([res_id for res_id in ids if res_id]):
+                name = labels.get(partner.id)
+                if name and partner.l10n_ar_identification_label and partner.vat:
+                    doc_info = f"{partner.l10n_ar_identification_label}: {partner.vat}"
+                    labels[partner.id] = f"{name[: 128 - len(doc_info) - 3]} ({doc_info})"
+            return labels
+
+        partner_entry["label_builder"] = partner_line_label_builder
+        return groupby_map
