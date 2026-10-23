@@ -1,0 +1,52 @@
+// Compact grid layout for the PoS combo configurator popup.
+//
+// Odoo 20 notes:
+// - PoS dialogs are rendered by the overlay container, outside the `.pos`
+//   root element, so `.pos .combo-configurator-popup` would never match.
+//   `combo-configurator-popup` is the content class of the Dialog.
+// - ProductCard renders an `article.product` element (there is no
+//   `.product-card` class) and the image wrapper is `.product-img`.
+// - Only `ComboConfiguratorPopup` exists in 20; there is no
+//   `.combo-selection-popup` anymore.
+
+.combo-configurator-popup {
+    .product-list {
+        display: grid !important;
+        grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)) !important;
+        gap: 8px !important;
+    }
+
+    .product {
+        padding: 6px !important;
+        min-height: 48px !important;
+        max-height: 60px !important;
+        font-size: 12px !important;
+        overflow: hidden !important;
+
+        // Cards with a quantity selector need room for the +/- buttons,
+        // otherwise they get clipped by the max-height above.
+        &:has(.quantity) {
+            max-height: none !important;
+        }
+    }
+
+    .product-img {
+        display: none !important;
+    }
+
+    // Let the content size itself instead of the default `h-100`, which
+    // would swallow the whole card height now that it is capped.
+    .product-content {
+        height: auto !important;
+        margin: 0 !important;
+    }
+
+    .product-name {
+        font-size: 12px !important;
+        line-height: 1.15 !important;
+        margin-top: 0 !important;
+        // Card names normally reserve a 16/9 box when there is no image.
+        aspect-ratio: auto !important;
+        --lines-clamp: 2;
+    }
+}
