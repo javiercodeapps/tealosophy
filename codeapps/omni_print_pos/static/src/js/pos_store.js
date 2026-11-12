@@ -129,6 +129,13 @@ patch(PosTicketPrinterPlugin.prototype, {
                 printer: { id: 0, name: "Omni Print (directo)", paper_size: "80" },
                 pos: this.env?.services?.pos,
                 printerName: null,
+                // Same defaults as a real pos.printer record.
+                escposSettings: {
+                    width: "WIDTH_80MM",
+                    feedLines: 2,
+                    dpi: "203",
+                    cutPaper: true,
+                },
             })
             this.__omniFallbackPrinter = {
                 id: 0,
