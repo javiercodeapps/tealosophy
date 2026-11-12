@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_pos_printer_form_omni_print" model="ir.ui.view">
+        <field name="name">pos.iot.config.form.view.omni_print</field>
+        <field name="model">pos.printer</field>
+        <field name="inherit_id" ref="point_of_sale.view_pos_printer_form"/>
+        <field name="arch" type="xml">
+            <field name="printer_type" position="after">
+                <field name="omni_printer" widget="omni_printer_selector" invisible="printer_type != 'omni_print'"/>
+                <field name="escpos_width" invisible="printer_type != 'omni_print'"/>
+                <field name="escpos_feed_lines" invisible="printer_type != 'omni_print'"/>
+                <field name="escpos_dpi" invisible="printer_type != 'omni_print'"/>
+                <field name="escpos_cut_paper" invisible="printer_type != 'omni_print'"/>
+            </field>
+        </field>
+    </record>
+</odoo>
