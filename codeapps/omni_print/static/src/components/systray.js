@@ -1,6 +1,6 @@
 /** @odoo-module **/
 
-import { Component, useState } from "@odoo/owl"
+import { Component, proxy } from "@odoo/owl"
 import { registry } from "@web/core/registry"
 import { useService, useBus } from "@web/core/utils/hooks";
 import { Dropdown } from "@web/core/dropdown/dropdown";
@@ -13,11 +13,12 @@ const CONNECTION_OFFLINE = "offline"
 class PrintTrayMenu extends Component {
     static components = { Dropdown };
     static template = "omni_print.PrintTrayMenu"
-    // OWL 3 (Odoo 20) ignores `static props`; declaring it makes the
-    // owl3_compatibility_layer throw when the component is instantiated.
+    // OWL 3 (Odoo 20) ignores `static props` (declaring it makes the
+    // owl3_compatibility_layer throw) and no longer exports `useState`.
+    // Reactive component state is now created with `proxy`.
 
     setup() {
-        this.state = useState({
+        this.state = proxy({
             connection: CONNECTION_UNKNOWN,
         })
 

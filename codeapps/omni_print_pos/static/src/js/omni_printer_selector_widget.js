@@ -2,29 +2,31 @@
 
 import { CharField } from "@web/views/fields/char/char_field";
 import { registry } from "@web/core/registry";
-import { useState, onWillStart, useRef, xml } from "@odoo/owl";
+import { proxy, onWillStart, signal, xml } from "@odoo/owl";
 import { useService } from "@web/core/utils/hooks";
 
 export class OmniPrinterSelectorWidget extends CharField {
     static template = xml`
-        <select class="o_input" t-on-change="_onPrinterChange" t-on-click="_onSelectClick" t-ref="printerSelect">
+        <select class="o_input" t-on-change="this._onPrinterChange" t-on-click="this._onSelectClick" t-ref="this.printerSelectRef">
             <option
-                t-att-selected="false === value"
+                t-att-selected="false === this.value"
                 value=""
                 >Select a printer...</option>
-            <t t-foreach="state.printers" t-as="printer" t-key="printer.name">
+            <t t-foreach="this.state.printers" t-as="printer" t-key="printer.name">
                 <option
-                    t-att-selected="printer.name === value"
+                    t-att-selected="printer.name === this.value"
                     t-att-value="printer.name"
                     >
-                    <t t-esc="printer.display_name"/>
+                    <t t-out="printer.display_name"/>
                 </option>
             </t>
         </select>`;
 
+    printerSelectRef = signal.ref();
+
     setup() {
         super.setup();
-        this.state = useState({
+        this.state = proxy({
             printers: [],
             loading: true,
             error: null,
@@ -32,7 +34,6 @@ export class OmniPrinterSelectorWidget extends CharField {
         });
 
         this.notification = useService("notification");
-        this.printerSelectRef = useRef("printerSelect");
 
         onWillStart(async () => {
             // Always fetch printers on initial load
