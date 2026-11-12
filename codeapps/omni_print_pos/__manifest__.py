@@ -5,7 +5,7 @@
         Seamlessly integrate Omni Print with Point of Sale (PoS) for direct receipt and invoice printing.
     """,
     'category': 'Point of Sale',
-    'version': '1.1.0',
+    'version': '20.0.1.1.0',
     'author': "Omni Byte",
     'website': "https://omni-byte.com/",
     'support': "support@omni-byte.com",

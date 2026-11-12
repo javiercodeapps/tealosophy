@@ -4,11 +4,12 @@ import { sendToPrinter, parseContentDisposition, removeExtension } from "@omni_p
 import { _t } from "@web/core/l10n/translation";
 
 patch(AccountMoveService.prototype, {
-    async downloadPdf(accountMoveId) {
+    // Odoo 20 added a `target` argument to the core method.
+    async downloadPdf(accountMoveId, target = "download") {
         const response = await this.orm.call(
             "account.move",
             "action_invoice_download_pdf",
-            [accountMoveId]
+            [accountMoveId, target]
         );
 
         if (response.type === 'ir.actions.act_url') {

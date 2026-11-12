@@ -1,6 +1,6 @@
 /** @odoo-module **/
 
-import { BasePrinter } from "@point_of_sale/app/printer/base_printer"
+import { BasePrinter } from "@point_of_sale/app/utils/printer/base_printer"
 import { _t } from "@web/core/l10n/translation"
 
 function normalizeBase64Image(imgData) {
@@ -22,8 +22,10 @@ function normalizeBase64Image(imgData) {
 }
 
 export class OmniPrinter extends BasePrinter {
-    setup({ pos, proxyUrl = "http://127.0.0.1:32276", printerName = null, escposSettings = null }) {
-        super.setup(...arguments)
+    // Odoo 20 BasePrinter.setup() takes a `printer` record (it no longer
+    // receives `pos`). Options specific to Omni Print are passed alongside it.
+    setup({ printer, pos = null, proxyUrl = "http://127.0.0.1:32276", printerName = null, escposSettings = null }) {
+        super.setup({ printer: printer || {} })
 
         this.pos = pos
         this.proxyUrl = proxyUrl
@@ -42,7 +44,8 @@ export class OmniPrinter extends BasePrinter {
             const normalizedImage = normalizeBase64Image(img_data);
             let payload = { image: normalizedImage }
 
-            const order = this.pos.get_order()
+            // Odoo 20 renamed get_order() to getOrder().
+            const order = this.pos?.getOrder?.() || this.pos?.get_order?.()
             if (order) {
                 payload.doc_names = order.name
             } else {
@@ -95,7 +98,7 @@ export class OmniPrinter extends BasePrinter {
     }
 
     getResultsError(printResult) {
-        const errorCode = printResult.errorCode
+        const errorCode = printResult?.printerErrorCode || printResult?.errorCode
         let message = _t("The printing request was sent to the Omni Print, but it wasn't able to print.") + "\n"
 
         if (errorCode) {

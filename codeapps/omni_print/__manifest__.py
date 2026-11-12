@@ -2,7 +2,7 @@
 {
     'name': "Omni Print: Direct Print from Desktop",
     'summary': """Omni Print can simplify your print workflow with one single click, no more downloads required.""",
-    'version': '1.0.3',
+    'version': '20.0.1.0.3',
     'author': "Omni Byte",
     'website': "https://omni-byte.com/",
     'images': ['static/description/main_screenshot.png'],

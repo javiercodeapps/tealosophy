@@ -5,6 +5,12 @@
         <field name="model">pos.printer</field>
         <field name="inherit_id" ref="point_of_sale.view_pos_printer_form"/>
         <field name="arch" type="xml">
+            <!-- Odoo 20 hides printer_type in the core form ("Invisible to be
+                 overridden"). Add-ons that add selection values must reveal it,
+                 otherwise the Omni Print options below can never be reached. -->
+            <field name="printer_type" position="attributes">
+                <attribute name="invisible">0</attribute>
+            </field>
             <field name="printer_type" position="after">
                 <field name="omni_printer" widget="omni_printer_selector" invisible="printer_type != 'omni_print'"/>
                 <field name="escpos_width" invisible="printer_type != 'omni_print'"/>

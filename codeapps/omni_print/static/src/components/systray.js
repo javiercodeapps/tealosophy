@@ -13,7 +13,8 @@ const CONNECTION_OFFLINE = "offline"
 class PrintTrayMenu extends Component {
     static components = { Dropdown };
     static template = "omni_print.PrintTrayMenu"
-    static props = []
+    // OWL 3 (Odoo 20) ignores `static props`; declaring it makes the
+    // owl3_compatibility_layer throw when the component is instantiated.
 
     setup() {
         this.state = useState({

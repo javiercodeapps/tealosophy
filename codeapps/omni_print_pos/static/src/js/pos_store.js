@@ -1,37 +1,34 @@
 /** @odoo-module */
 
-import { PosStore } from "@point_of_sale/app/store/pos_store";
-import { OmniPrinter } from "./printer";
 import { patch } from "@web/core/utils/patch";
+import { PosTicketPrinterPlugin } from "@point_of_sale/app/plugins/pos_ticket_printer_plugin";
+import { OmniPrinter } from "./printer";
 
-patch(PosStore.prototype, {
-    afterProcessServerData() {
-        var self = this;
-        return super.afterProcessServerData(...arguments).then(function () {
-            if (self.config.use_omni_print) {
-                self.hardwareProxy.printer = new OmniPrinter({ pos: self });
-                self.config.iface_cashdrawer = self.config.omni_print_enable_cashdrawer;
-                
-                if (self.config.omni_print_enable_scale) {
-                    self.config.iface_electronic_scale = self.config.omni_print_enable_scale;
-                }
-            }
-        });
-    },
-    create_printer(config) {
-        if (config.printer_type == 'omni_print') {
-            return new OmniPrinter({
-                pos: this,
-                printerName: config.omni_printer,
-                escposSettings: {
-                    width: config.escpos_width,
-                    feedLines: config.escpos_feed_lines,
-                    dpi: config.escpos_dpi,
-                    cutPaper: config.escpos_cut_paper,
-                },
-            });
-        } else {
-            return super.create_printer(...arguments)
+// Odoo 20 removed PosStore.create_printer() / hardwareProxy.printer: printers
+// are now instantiated by PosTicketPrinterPlugin.createPrinterInstance() and
+// stored on the pos.printer record as `_instance`.
+patch(PosTicketPrinterPlugin.prototype, {
+    async createPrinterInstance(printer) {
+        if (!this.config?.use_omni_print) {
+            return super.createPrinterInstance(...arguments);
         }
+
+        // Core opens the cash drawer based on `printer.use_cashdrawer`.
+        // Map the legacy config flag onto the record (client-side only).
+        if (this.config.omni_print_enable_cashdrawer) {
+            printer.use_cashdrawer = true;
+        }
+
+        return new OmniPrinter({
+            printer,
+            pos: this.env?.services?.pos,
+            printerName: printer.omni_printer || null,
+            escposSettings: {
+                width: printer.escpos_width,
+                feedLines: printer.escpos_feed_lines,
+                dpi: printer.escpos_dpi,
+                cutPaper: printer.escpos_cut_paper,
+            },
+        });
     },
 });

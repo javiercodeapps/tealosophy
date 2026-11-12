@@ -1,105 +1,57 @@
 /** @odoo-module **/
 
 /**
- * Patch the original PosScaleService so that it can talk to the OmniPrint
- * electronic scale backend (HTTP JSON API) while retaining full compatibility
- * with future upstream changes (e.g. new confirmWeight() method introduced in
- * https://github.com/odoo/odoo/pull/213537).
- *
- * We purposely avoid registering a brand-new `pos_scale` service.  Instead, we
- * extend the existing service at runtime to minimise the risk of merge
- * conflicts when Odoo core evolves.
+ * Odoo 20 removed the `PosScaleService` (and the old scale_screen service).
+ * Scales are now `ScaleInterface` subclasses registered in the
+ * `electronic_scales` registry: PosStore instantiates each of them and keeps
+ * the first one whose `connectToScale()` returns true. Extending the interface
+ * (instead of reimplementing readWeight) keeps tare / confirmWeight / error
+ * handling in sync with core.
  */
 
-import { patch } from "@web/core/utils/patch"
+import { registry } from "@web/core/registry"
 import { _t } from "@web/core/l10n/translation"
-import { PosScaleService } from "@point_of_sale/app/screens/scale_screen/scale_service"
+import { ScaleInterface } from "@point_of_sale/app/utils/scale/scale_interface"
 
-patch(PosScaleService.prototype, {
-    setup(env, deps) {
-        super.setup(env, deps)
+const BASE_URL = "http://127.0.0.1:32276"
 
-        // Do not capture config here; it may be empty at this stage.
-        this.baseUrl = "http://127.0.0.1:32276"
-    },
-
-    async readWeight() {
-        // If OmniPrint scale is disabled, fall back to the original implementation
-        if (!this.env.services?.pos?.config?.omni_print_enable_scale) {
-            return super.readWeight?.(...arguments);
+export class OmniPrintScaleInterface extends ScaleInterface {
+    async connectToScale() {
+        // Let core (web serial / IoT) handle the scale when Omni Print is off.
+        if (!this.pos?.config?.omni_print_enable_scale) {
+            return false
         }
 
-        this.loading = true
         try {
-            await this._checkScaleIsConnected()
-            const { weight } = await this._getWeightFromScale()
-            this.weight = weight
-            // Keep measuring even after a stable reading so that tare can be applied on subsequent readings.
-        } catch (error) {
-            this.isMeasuring = false
-            this.onError?.(error.message || _t("Cannot connect to the scale"))
-        } finally {
-            this.loading = false
-            this._setTareIfRequested?.()
-        }
-    },
-
-    async _getWeightFromScale() {
-        // Use default hardware proxy if OmniPrint scale is disabled
-        if (!this.env.services?.pos?.config?.omni_print_enable_scale) {
-            return super._getWeightFromScale?.(...arguments);
-        }
-
-        const controller = new AbortController()
-        try {
-            const response = await fetch(`${this.baseUrl}/scale/weight`, {
-                signal: controller.signal,
+            const response = await fetch(`${BASE_URL}/scale/status`, {
                 headers: { Accept: "application/json" },
             })
-
             if (!response.ok) {
-                throw new Error(_t("Failed to read from scale"))
+                return false
             }
-
             const data = await response.json()
-            if (data.status !== "success" || typeof data.weight !== "number") {
-                throw new Error(_t("Invalid scale response"))
-            }
-
-            return { weight: data.weight, stable: !!data.stable }
+            return data.status === "connected"
         } catch (error) {
-            console.error("Scale error:", error)
-            throw error
+            console.error("OmniPrint scale is not reachable:", error)
+            return false
         }
-    },
+    }
 
-    _checkScaleIsConnected() {
-        // Fallback when OmniPrint scale is disabled
-        if (!this.env.services?.pos?.config?.omni_print_enable_scale) {
-            return super._checkScaleIsConnected?.(...arguments);
+    async _readWeight() {
+        const response = await fetch(`${BASE_URL}/scale/weight`, {
+            headers: { Accept: "application/json" },
+        })
+        if (!response.ok) {
+            throw new Error(_t("Failed to read from scale"))
         }
 
-        return (async () => {
-            try {
-                const statusUrl = `${this.baseUrl}/scale/status`
-                const response = await fetch(statusUrl, {
-                    headers: { Accept: "application/json" },
-                })
+        const data = await response.json()
+        if (data.status !== "success" || typeof data.weight !== "number") {
+            throw new Error(_t("Invalid scale response"))
+        }
 
-                if (!response.ok) {
-                    throw new Error(_t("Failed to check scale status"))
-                }
+        return data.weight
+    }
+}
 
-                const data = await response.json()
-                if (data.status !== "connected") {
-                    throw new Error(_t("Scale is not connected"))
-                }
-
-                return true
-            } catch (error) {
-                console.error("Scale status check failed:", error)
-                throw new Error(_t("Cannot weigh product - ") + error.message)
-            }
-        })()
-    },
-})
+registry.category("electronic_scales").add("omni_print", OmniPrintScaleInterface, { sequence: 10 })

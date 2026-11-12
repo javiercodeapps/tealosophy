@@ -1,8 +1,7 @@
 /** @odoo-module **/
 
+import { EventBus } from "@odoo/owl";
 import { registry } from "@web/core/registry";
-
-const { EventBus } = owl;
 
 class HeartbeatConnectionService {
     constructor(url, baseInterval = 1000, maxInterval = 1000*60*60, backoffFactor = 2) {

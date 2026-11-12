@@ -1,24 +1,20 @@
-import json
-import logging
-import werkzeug.exceptions
+# -*- coding: utf-8 -*-
 
-from werkzeug.urls import url_parse
+import json
 from urllib.parse import quote
 
-from odoo import http
-from odoo.http import content_disposition, request, route
-from odoo.tools.misc import html_escape
-from odoo.tools.safe_eval import safe_eval, time
+from odoo.http import request, route
 
 from odoo.addons.web.controllers import report
-
-_logger = logging.getLogger(__name__)
 
 
 class ReportController(report.ReportController):
 
     @route()
-    def report_download(self, data, context=None, token=None):
+    def report_download(self, data, context=None, token=None, readonly=True):
+        # `readonly` is part of the Odoo 20 core signature; keep it here so the
+        # router does not filter it out. Do not forward it: the parent already
+        # defaults it to True and older 20.0 builds may not declare it.
         resp = super().report_download(data, context, token)
 
         requestcontent = json.loads(data)
