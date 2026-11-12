@@ -76,12 +76,10 @@ export class OmniPrinter extends BasePrinter {
             let img_data;
             if (isCanvas) {
                 // Odoo 20 BasePrinter.print() passes the canvas straight to
-                // sendPrintingJob; 18/19 already delivered the raw base64
-                // string produced by the generic `toDataURL()`, which is PNG.
-                // The Omni Print agent only decodes 8-bit PNG ("firma
-                // invalida" on any other signature), so keep PNG here.
-                img_data = img.toDataURL("image/png").replace("data:image/png;base64,", "");
-                console.log(LOG, "canvas → base64 PNG", { chars: img_data.length })
+                // sendPrintingJob; 18/19 already delivered a raw base64 JPEG.
+                // Restore that payload so the local agent receives image data.
+                img_data = img.toDataURL("image/jpeg").replace("data:image/jpeg;base64,", "");
+                console.log(LOG, "canvas → base64 JPEG", { chars: img_data.length })
             } else if (typeof img === 'object' && img !== null && img.hasOwnProperty('data') && img.hasOwnProperty('isBase64') && img.isBase64) {
                 img_data = img.data;
             } else {
@@ -122,12 +120,9 @@ export class OmniPrinter extends BasePrinter {
             })
             const data = await res.json()
             console.log(LOG, "sendPrintingJob datos", data)
-            // Keep the agent's own message: "400 Bad Request" alone tells the
-            // user nothing (e.g. "se requiere PNG 8-bit").
-            this.lastAgentError = data?.error || data?.message || null
             return {
                 result: data.success,
-                printerErrorCode: data.errorCode || (data.success ? null : "AGENT_ERROR"),
+                printerErrorCode: data.errorCode,
             }
         } catch (error) {
             console.warn(LOG, "✗ OmniPrint error en sendPrintingJob", error)
@@ -162,10 +157,6 @@ export class OmniPrinter extends BasePrinter {
     getResultsError(printResult) {
         const errorCode = printResult?.printerErrorCode || printResult?.errorCode
         let message = _t("The printing request was sent to the Omni Print, but it wasn't able to print.") + "\n"
-
-        if (this.lastAgentError) {
-            message += "\n" + this.lastAgentError
-        }
 
         if (errorCode) {
             message += "\n" + _t("The following error code was returned:") + "\n" + errorCode
