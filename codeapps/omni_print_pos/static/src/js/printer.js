@@ -45,6 +45,23 @@ export class OmniPrinter extends BasePrinter {
         })
     }
 
+    async print(image) {
+        console.log(LOG, "OmniPrinter.print invocado", {
+            printerName: this.printerName,
+            proxyUrl: this.proxyUrl,
+            paperSize: this.paperSize,
+            imageType: typeof image,
+            isCanvas: typeof HTMLCanvasElement !== "undefined" && image instanceof HTMLCanvasElement,
+        })
+        const status = await super.print(...arguments)
+        console.log(LOG, "OmniPrinter.print resultado", {
+            successful: status?.successful,
+            warningCode: status?.warningCode,
+            message: status?.message?.body,
+        })
+        return status
+    }
+
     async sendPrintingJob(img) {
         const isCanvas = typeof HTMLCanvasElement !== "undefined" && img instanceof HTMLCanvasElement
         console.log(LOG, "sendPrintingJob invocado", {
