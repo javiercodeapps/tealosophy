@@ -1,21 +1,17 @@
 # -*- coding: utf-8 -*-
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 
-from odoo import api, fields, models, _
+from odoo import fields, models
 
 
 class PosConfig(models.Model):
     _inherit = "pos.config"
 
-    use_omni_print = fields.Boolean(string="Omni Print", compute="_compute_use_omni_print", readonly=False, store=True, help="Send the print job to Omni Print")
+    # In Odoo 20 `other_devices` IS the "Receipt Printers" toggle, and it is
+    # required to register a pos.printer. The 18/19 compute forcibly reset this
+    # flag whenever other_devices was on, making Omni Print impossible to
+    # enable exactly when a receipt printer was configured. Keep it a plain
+    # stored Boolean so the setting survives (the DB column is preserved).
+    use_omni_print = fields.Boolean(string="Omni Print", help="Send the print job to Omni Print")
     omni_print_enable_cashdrawer = fields.Boolean(string="Cash Drawer")
     omni_print_enable_scale = fields.Boolean('Enable Scale')
-
-    # `is_posbox` (and `iface_cashdrawer` / `iface_electronic_scale`) were
-    # removed from pos.config in Odoo 20. Depending on a non-existent field
-    # raises ValueError while the registry is built.
-    @api.depends('other_devices')
-    def _compute_use_omni_print(self):
-        for config in self:
-            if config.other_devices:
-                config.use_omni_print = False
