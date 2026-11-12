@@ -5,12 +5,42 @@ import { makeErrorFromResponse, ConnectionLostError } from "@web/core/network/rp
 
 const _download = download._download
 
+const LOG = "[omni_print]"
+
+// Guardamos también el rastro en window para poder inspeccionarlo desde la
+// consola aunque se haya limpiado el log: __omniPrintTrace
+const trace = (window.__omniPrintTrace = window.__omniPrintTrace || [])
+const dbg = (...args) => {
+    trace.push({ at: new Date().toISOString(), level: "log", args })
+    if (trace.length > 100) trace.shift()
+    console.log(LOG, ...args)
+}
+const warn = (...args) => {
+    trace.push({ at: new Date().toISOString(), level: "warn", args })
+    if (trace.length > 100) trace.shift()
+    console.warn(LOG, ...args)
+}
+
+dbg("network/download.js evaluado; parcheando download._download", {
+    originalType: typeof _download,
+})
+
 export function sendToPrinter({ file, reportName, reportTitle, docNames }, proxyUrl = "http://127.0.0.1:32276/print/pdf") {
     const formData = new FormData();
     formData.append("file", file, reportName);
     formData.append("reportName", reportName);
     formData.append("reportTitle", reportTitle);
     formData.append("docNames", docNames);
+
+    dbg("sendToPrinter → POST al agente", proxyUrl, {
+        reportName,
+        reportTitle,
+        docNames,
+        fileName: file && file.name,
+        fileSize: file && file.size,
+        fileType: file && file.type,
+        formFields: [...formData.keys()],
+    })
 
     return fetch(proxyUrl, {
         method: "POST",
@@ -19,19 +49,51 @@ export function sendToPrinter({ file, reportName, reportTitle, docNames }, proxy
             "Access-Control-Allow-Origin": "*",
             "Accept-Referrer-Policy": "no-referrer",
         },
+    }).then((response) => {
+        dbg("sendToPrinter ← respuesta del agente", {
+            status: response.status,
+            ok: response.ok,
+            statusText: response.statusText,
+        })
+        return response
+    }).catch((error) => {
+        warn("sendToPrinter ✗ fetch falló (agente apagado / CORS / mixed-content?)", error)
+        throw error
     });
 }
 
 
 download._download = async function (options) {
+    dbg("download() invocado", {
+        url: options && options.url,
+        hasForm: !!(options && options.form),
+        dataKeys: options && options.data ? Object.keys(options.data) : null,
+        rawData: options && options.data ? options.data.data : null,
+    })
+
     if (!options.url || options.url !== "/report/download") {
+        dbg("→ BYPASS: no es /report/download, delego al core", options && options.url)
         return _download.apply(this, arguments)
     }
 
-    const [_, reportType] = JSON.parse(options.data.data)
-    if (reportType !== "qweb-pdf" && reportType !== "qweb-text") {
+    let reportUrl
+    let reportType
+    try {
+        const parsed = JSON.parse(options.data.data)
+        reportUrl = parsed[0]
+        reportType = parsed[1]
+    } catch (error) {
+        warn("→ BYPASS: no pude parsear options.data.data", options.data.data, error)
         return _download.apply(this, arguments)
     }
+    dbg("datos del reporte parseados", { reportUrl, reportType })
+
+    if (reportType !== "qweb-pdf" && reportType !== "qweb-text") {
+        warn("→ BYPASS: reportType no es exactamente 'qweb-pdf'/'qweb-text' (Odoo 20 puede usar 'qweb-pdf-<engine>')", reportType)
+        return _download.apply(this, arguments)
+    }
+
+    dbg("→ INTERCEPTANDO descarga de reporte", reportType)
 
     const formData = new FormData(options.form || undefined)
     if (!options.form) {
@@ -41,28 +103,61 @@ download._download = async function (options) {
     if (window.odoo && window.odoo.csrf_token) {
         formData.append("csrf_token", window.odoo.csrf_token)
     }
+    dbg("POST a /report/download", {
+        url: options.form ? options.form.action : options.url,
+        method: options.form ? options.form.method : "POST",
+        formFields: [...formData.keys()],
+        hasCsrf: !!(window.odoo && window.odoo.csrf_token),
+    })
 
     return fetch(options.form ? options.form.action : options.url, {
         method: options.form ? options.form.method : "POST",
         body: formData,
     }).then((response) => {
-        handleResponse(response, reportType)
+        dbg("respuesta de /report/download", {
+            status: response.status,
+            ok: response.ok,
+            type: response.type,
+            contentDisposition: response.headers.get("Content-Disposition"),
+            xReportName: response.headers.get("X-Report-Name"),
+            xReportTitle: response.headers.get("X-Report-Title"),
+            xReportDocnames: response.headers.get("X-Report-Docnames"),
+        })
+        handleResponse(response, reportType).catch((error) => {
+            warn("handleResponse rechazó", error)
+        })
     }).catch((error) => {
+        warn("fetch de /report/download falló", error)
         Promise.reject(new ConnectionLostError())
     })
 }
 
 function handleResponse(response, reportType) {
+    dbg("handleResponse", { ok: response.ok, status: response.status, reportType })
     if (!response.ok) {
-        return response.text().then((text) => parseError(text, response.status))
+        return response.text().then((text) => {
+            warn("respuesta no-OK del servidor", { status: response.status, text: String(text).slice(0, 500) })
+            return parseError(text, response.status)
+        })
     }
 
-    const filename = parseContentDisposition(response.headers.get("Content-Disposition"))
+    const contentDisposition = response.headers.get("Content-Disposition")
+    const filename = parseContentDisposition(contentDisposition)
+    dbg("cabeceras recibidas", {
+        contentDisposition,
+        filename,
+        xReportName: response.headers.get("X-Report-Name"),
+        xReportTitle: response.headers.get("X-Report-Title"),
+        xReportDocnames: response.headers.get("X-Report-Docnames"),
+    })
+
     return response
         .blob()
         .then(async (blob) => {
             const mimetype = blob.type
+            dbg("blob recibido", { mimetype, size: blob.size, filename })
             if (mimetype === "text/html" || !filename) {
+                warn("blob inválido o sin filename → NO se envía a imprimir", { mimetype, filename })
                 return Promise.reject(new Error("Invalid MIME type or filename missing."))
             }
 
@@ -80,15 +175,21 @@ function handleResponse(response, reportType) {
 
             const format = reportType === "qweb-pdf" ? "pdf" : "zpl"
             const proxyUrl = `http://127.0.0.1:32276/print/${format}`
+            dbg("enviando al agente local", {
+                proxyUrl,
+                format,
+                printData: { ...printData, file: `Blob(${blob.size})` },
+            })
             return sendToPrinter(printData, proxyUrl)
                 .then(async (uploadResponse) => {
                     if (uploadResponse && !uploadResponse.ok) {
                         return uploadResponse.text().then((text) => Promise.reject(new Error(text)));
                     }
+                    dbg("✔ impresión enviada correctamente al agente")
                     return Promise.resolve()
                 }).then(() => Promise.resolve(filename))
                 .catch((error) => {
-                    console.log('print error = ', error);
+                    warn('print error → fallback a descarga del navegador', error);
                     downloadFile(blob, filename, mimetype);
                     return Promise.resolve(filename);
                 });
@@ -135,3 +236,5 @@ export function parseContentDisposition(contentDisposition) {
 export function removeExtension(filename) {
     return filename.replace(/\.[^/.]+$/, "");
 }
+
+dbg("parche instalado en download._download:", download._download !== _download)

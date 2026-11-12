@@ -1,17 +1,21 @@
 # -*- coding: utf-8 -*-
 
 import json
+import logging
 from urllib.parse import quote
 
 from odoo.http import request, route
 
 from odoo.addons.web.controllers import report
 
+_logger = logging.getLogger(__name__)
+
 
 class ReportController(report.ReportController):
 
     @route()
     def report_download(self, data, context=None, token=None, readonly=True):
+        _logger.info("[omni_print] report_download override INVOCADO | data=%s | readonly=%s", data, readonly)
         # `readonly` is part of the Odoo 20 core signature; keep it here so the
         # router does not filter it out. Do not forward it: the parent already
         # defaults it to True and older 20.0 builds may not declare it.
@@ -19,8 +23,10 @@ class ReportController(report.ReportController):
 
         requestcontent = json.loads(data)
         url, type_ = requestcontent[0], requestcontent[1]
+        _logger.info("[omni_print] datos recibidos | url=%s | type_=%s", url, type_)
 
         if type_ not in ['qweb-pdf', 'qweb-text']:
+            _logger.info("[omni_print] BYPASS: type_=%s no es qweb-pdf/qweb-text; no se añaden cabeceras", type_)
             return resp
 
         pattern = '/report/pdf/' if type_ == 'qweb-pdf' else '/report/text/'
@@ -33,6 +39,7 @@ class ReportController(report.ReportController):
 
         resp.headers.add("X-Report-Name", reportname)
         resp.headers.add("X-Report-Title", quote(report.name))
+        _logger.info("[omni_print] cabeceras añadidas | reportname=%s | docids=%s", reportname, docids)
 
         if not docids:
             return resp

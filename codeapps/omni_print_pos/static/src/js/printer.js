@@ -3,6 +3,10 @@
 import { BasePrinter } from "@point_of_sale/app/utils/printer/base_printer"
 import { _t } from "@web/core/l10n/translation"
 
+const LOG = "[omni_print]"
+
+console.log(LOG, "printer.js evaluado; OmniPrinter disponible")
+
 function normalizeBase64Image(imgData) {
     if (typeof imgData !== "string") {
         return imgData;
@@ -31,17 +35,43 @@ export class OmniPrinter extends BasePrinter {
         this.proxyUrl = proxyUrl
         this.printerName = printerName
         this.escposSettings = escposSettings
+        console.log(LOG, "OmniPrinter.setup", {
+            id: this.id,
+            name: this.name,
+            proxyUrl,
+            printerName,
+            escposSettings,
+            hasPos: !!this.pos,
+        })
     }
 
     async sendPrintingJob(img) {
+        const isCanvas = typeof HTMLCanvasElement !== "undefined" && img instanceof HTMLCanvasElement
+        console.log(LOG, "sendPrintingJob invocado", {
+            imgType: typeof img,
+            isCanvas,
+            canvasSize: isCanvas ? { width: img.width, height: img.height } : null,
+            isObject: typeof img === "object" && img !== null,
+            imgKeys: typeof img === "object" && img !== null ? Object.keys(img).slice(0, 10) : null,
+            proxyUrl: this.proxyUrl,
+        })
         try {
             let img_data;
-            if (typeof img === 'object' && img.hasOwnProperty('data') && img.hasOwnProperty('isBase64') && img.isBase64) {
+            if (isCanvas) {
+                // Odoo 20 BasePrinter.print() passes the canvas straight to
+                // sendPrintingJob; 18/19 already delivered a raw base64 JPEG.
+                // Restore that payload so the local agent receives image data.
+                img_data = img.toDataURL("image/jpeg").replace("data:image/jpeg;base64,", "");
+                console.log(LOG, "canvas → base64 JPEG", { chars: img_data.length })
+            } else if (typeof img === 'object' && img !== null && img.hasOwnProperty('data') && img.hasOwnProperty('isBase64') && img.isBase64) {
                 img_data = img.data;
             } else {
                 img_data = img;
             }
             const normalizedImage = normalizeBase64Image(img_data);
+            if (typeof normalizedImage !== "string") {
+                console.warn(LOG, "⚠ payload.image NO es un string; el agente no podrá imprimir", typeof normalizedImage)
+            }
             let payload = { image: normalizedImage }
 
             // Odoo 20 renamed get_order() to getOrder().
@@ -58,18 +88,27 @@ export class OmniPrinter extends BasePrinter {
             if (this.escposSettings) {
                 payload.escpos_settings = this.escposSettings
             }
+            console.log(LOG, "sendPrintingJob → POST al agente", {
+                url: `${this.proxyUrl}/print/img`,
+                payload: { ...payload, image: `${String(payload.image).length} chars` },
+            })
             const res = await fetch(`${this.proxyUrl}/print/img`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(payload),
             })
+            console.log(LOG, "sendPrintingJob ← respuesta del agente", {
+                status: res.status,
+                ok: res.ok,
+            })
             const data = await res.json()
+            console.log(LOG, "sendPrintingJob datos", data)
             return {
                 result: data.success,
                 printerErrorCode: data.errorCode,
             }
         } catch (error) {
-            console.error("OmniPrint error:", error)
+            console.warn(LOG, "✗ OmniPrint error en sendPrintingJob", error)
             return {
                 result: false,
                 printerErrorCode: "NETWORK_ERROR",
@@ -78,6 +117,7 @@ export class OmniPrinter extends BasePrinter {
     }
 
     async openCashbox() {
+        console.log(LOG, "openCashbox invocado", `${this.proxyUrl}/cashbox/open`)
         try {
             const res = await fetch(`${this.proxyUrl}/cashbox/open`, {
                 method: "POST",
