@@ -54,11 +54,17 @@ export class OmniPrinterSelectorWidget extends CharField {
         const url = `http://127.0.0.1:32276/printers`;
 
         try {
+            // Sin `credentials: 'include'`: el agente local (127.0.0.1:32276)
+            // no autentica con cookies y responde con
+            // `Access-Control-Allow-Origin: *`. El navegador rechaza ese
+            // comodin si la peticion lleva credenciales ("must not be the
+            // wildcard '*' when the request's credentials mode is 'include'").
+            // El modo por defecto (`same-origin`) no envia cookies a otro
+            // origen y acepta el comodin.
             const response = await fetch(url, {
                 headers: {
                     'Accept': 'application/json'
-                },
-                credentials: 'include'
+                }
             });
 
             if (!response.ok) {
@@ -67,11 +73,14 @@ export class OmniPrinterSelectorWidget extends CharField {
             }
 
             const data = await response.json();
-            if (Array.isArray(data)) {
-                this.state.printers = data;
-            } else {
+            // El agente responde {"status": "success", "count": N,
+            // "printers": [...]}; se acepta tambien la lista pelada por
+            // compatibilidad con versiones antiguas del agente.
+            const printers = Array.isArray(data) ? data : (data && data.printers);
+            if (!Array.isArray(printers)) {
                  throw new Error("Invalid data format received from printer API.");
             }
+            this.state.printers = printers;
 
         } catch (error) {
             console.error("Failed to fetch printers:", error);
